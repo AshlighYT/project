@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Business Empire Simulator — Stage 5</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; }
+  body { background:#0b0e14; color:#e0e4eb; min-height:100vh; display:flex; flex-direction:column; line-height:1.4; }
+  :root {
+    --bg-dark:#0b0e14; --bg-panel:#131a24; --bg-card:#1a2330; --border-dim:#2a3442;
+    --text-primary:#eef2f8; --text-secondary:#8e9db0; --accent-green:#2dd4a0;
+    --accent-red:#f45b5b; --accent-blue:#3b82f6; --accent-gold:#eab308;
+    --shadow:0 4px 12px rgba(0,0,0,0.5);
+    --candle-green:#26a69a; --candle-red:#ef5350;
+  }
+  .app { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+  .top-nav { display:flex; align-items:center; padding:0 20px; height:56px; background:#0f151e; border-bottom:1px solid var(--border-dim); overflow-x:auto; white-space:nowrap; gap:8px; flex-shrink:0; }
+  .nav-btn { background:transparent; border:none; color:var(--text-secondary); font-weight:500; font-size:.9rem; padding:8px 14px; border-radius:6px; cursor:pointer; transition:background .15s,color .15s; }
+  .nav-btn:hover { background:#1e2a38; color:#fff; }
+  .nav-btn.active { background:#1e2a38; color:#fff; font-weight:600; }
+  .spacer { flex:1; }
+  .equity-pill { background:#1e2a38; padding:6px 16px; border-radius:40px; font-weight:600; font-size:.9rem; color:var(--accent-green); border:1px solid #2f3d4e; }
+  .main-content { flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:20px; }
+  .page { display:none; flex-direction:column; gap:20px; }
+  .page.active { display:flex; }
+  .dashboard-grid { display:grid; grid-template-columns:1fr 320px; gap:20px; }
+  @media (max-width:900px){ .dashboard-grid{ grid-template-columns:1fr; } }
+  .card { background:var(--bg-panel); border:1px solid var(--border-dim); border-radius:12px; padding:18px 20px; box-shadow:var(--shadow); }
+  .card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; font-size:.85rem; text-transform:uppercase; letter-spacing:.5px; color:var(--text-secondary); }
+  .stat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:14px; }
+  .stat-item { background:var(--bg-card); padding:12px 14px; border-radius:10px; border:1px solid #232e3c; }
+  .stat-label { font-size:.7rem; text-transform:uppercase; color:var(--text-secondary); letter-spacing:.5px; }
+  .stat-value { font-size:1.3rem; font-weight:700; margin-top:4px; color:#fff; }
+  .stat-value.green { color:var(--accent-green); }
+  .stat-value.red { color:var(--accent-red); }
+  .chart-container { height:300px; background:#0d1219; border-radius:10px; border:1px solid #232e3c; position:relative; overflow:hidden; }
+  .chart-svg { width:100%; height:100%; display:block; }
+  .chart-marker { position:absolute; right:16px; top:12px; background:#1e2a38; padding:4px 12px; border-radius:40px; font-size:.8rem; font-weight:600; border:1px solid #2f3d4e; z-index:2; }
+  .chart-toolbar { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  .chart-toggle { display:inline-flex; background:#0d1219; border:1px solid #232e3c; border-radius:8px; padding:3px; }
+  .chart-toggle button { background:transparent; border:none; color:var(--text-secondary); padding:5px 14px; border-radius:6px; cursor:pointer; font-size:.75rem; font-weight:600; }
+  .chart-toggle button.active { background:#1e2a38; color:#fff; }
+  .sidebar { display:flex; flex-direction:column; gap:20px; }
+  .buy-business-list { display:flex; flex-direction:column; gap:10px; max-height:420px; overflow-y:auto; padding-right:4px; }
+  .business-item { background:var(--bg-card); border:1px solid #232e3c; border-radius:10px; padding:12px; font-size:.8rem; }
+  .business-item.owned { border-left:3px solid var(--accent-green); }
+  .business-item.locked { opacity:.5; border-left:3px solid #3a4553; }
+  .business-name { font-weight:700; font-size:.9rem; display:flex; justify-content:space-between; }
+  .business-sector { color:var(--text-secondary); font-size:.65rem; text-transform:uppercase; margin:4px 0 8px; }
+  .business-stats { display:flex; justify-content:space-between; margin-bottom:8px; color:#b0c0d0; }
+  .business-actions { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .btn { background:#253040; border:none; color:#fff; padding:6px 12px; border-radius:6px; font-weight:500; font-size:.75rem; cursor:pointer; transition:background .15s,opacity .15s; border:1px solid #2f3d4e; }
+  .btn:hover:not(:disabled){ background:#2f3d4e; }
+  .btn:disabled { opacity:.4; cursor:not-allowed; }
+  .btn-primary { background:var(--accent-blue); border-color:#2563eb; color:#fff; }
+  .btn-primary:hover:not(:disabled){ background:#2563eb; }
+  .btn-success { background:var(--accent-green); border-color:#1f9e7a; color:#0b0e14; font-weight:600; }
+  .btn-success:hover:not(:disabled){ background:#1f9e7a; }
+  .btn-danger { background:#b91c1c; border-color:#991b1b; }
+  .btn-sm { padding:4px 10px; font-size:.7rem; }
+  .table-wrap { overflow-x:auto; max-height:420px; overflow-y:auto; }
+  table { width:100%; border-collapse:collapse; font-size:.8rem; }
+  th { text-align:left; padding:8px 6px; color:var(--text-secondary); font-weight:500; border-bottom:1px solid var(--border-dim); position:sticky; top:0; background:var(--bg-panel); z-index:1; }
+  td { padding:8px 6px; border-bottom:1px solid #1e2733; }
+  .text-green { color:var(--accent-green); }
+  .text-red { color:var(--accent-red); }
+  .stage-tracker { display:flex; gap:6px; flex-wrap:wrap; }
+  .stage-pill { padding:8px 14px; border-radius:40px; background:#1a2330; border:1px solid #2a3442; font-size:.75rem; font-weight:600; color:var(--text-secondary); }
+  .stage-pill.active { background:var(--accent-blue); color:#fff; border-color:#3b82f6; }
+  .stage-pill.completed { background:#1f3a2e; color:var(--accent-green); border-color:#2dd4a0; }
+  .progress-bar-bg { width:100%; height:8px; background:#1e2733; border-radius:20px; overflow:hidden; margin:8px 0; }
+  .progress-bar-fill { height:100%; background:var(--accent-blue); border-radius:20px; transition:width .3s; }
+  .ledger { max-height:200px; overflow-y:auto; font-size:.75rem; color:var(--text-secondary); }
+  .ledger-entry { padding:4px 0; border-bottom:1px solid #1a2330; }
+  input,select { background:#0d1219; border:1px solid #2a3442; color:#fff; padding:8px 12px; border-radius:6px; font-size:.8rem; width:100%; }
+  .form-row { display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+  .form-row > * { flex:1; min-width:80px; }
+  .toast { position:fixed; bottom:20px; right:20px; background:#1e2a38; border-left:4px solid var(--accent-blue); padding:12px 20px; border-radius:8px; box-shadow:0 8px 20px rgba(0,0,0,.6); font-size:.85rem; color:#fff; z-index:999; max-width:320px; }
+  .hidden { display:none !important; }
+  .mt-2 { margin-top:8px; } .mb-2 { margin-bottom:8px; }
+  .flex { display:flex; } .justify-between { justify-content:space-between; } .items-center { align-items:center; } .gap-2 { gap:8px; }
+  .text-sm { font-size:.8rem; } .text-xs { font-size:.7rem; }
+  .tag-stock { color:#60a5fa; } .tag-crypto { color:#f59e0b; } .tag-fund { color:#a78bfa; }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="top-nav">
+    <button class="nav-btn active" data-page="dashboard">Dashboard</button>
+    <button class="nav-btn" data-page="markets">Markets</button>
+    <button class="nav-btn" data-page="portfolio">Portfolio</button>
+    <button class="nav-btn" data-page="launch">Launch Your Own</button>
+    <button class="nav-btn" data-page="empire">Empire</button>
+    <span class="spacer"></span>
+    <div class="equity-pill" id="navEquity">$0</div>
+    <button class="nav-btn" id="musicBtn" title="Toggle lo-fi music">🔇 Lo-fi</button>
+    <button class="nav-btn" id="resetBtn" style="color:#f45b5b;">Reset</button>
+  </nav>
+
+  <main class="main-content">
+    <!-- Dashboard -->
+    <div class="page active" id="page-dashboard">
+      <div class="dashboard-grid">
+        <div style="display:flex; flex-direction:column; gap:20px;">
+          <div class="card">
+            <div class="card-header"><span>Dashboard</span><span>session P&L</span></div>
+            <div class="stat-grid">
+              <div class="stat-item"><div class="stat-label">Total Equity</div><div class="stat-value" id="totalEquity">$0</div></div>
+              <div class="stat-item"><div class="stat-label">Available Cash</div><div class="stat-value" id="cashDisplay">$0</div></div>
+              <div class="stat-item"><div class="stat-label">Portfolio Value</div><div class="stat-value" id="portfolioValue">$0</div></div>
+              <div class="stat-item"><div class="stat-label">Session P&L</div><div class="stat-value" id="sessionPnl">$0</div></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="chart-toolbar">
+              <div class="card-header" style="margin:0;"><span>Price Chart — <span id="chartAssetName">Nexus Global</span></span></div>
+              <div class="chart-toggle" id="chartToggle">
+                <button data-mode="line" class="active">Line</button>
+                <button data-mode="candle">Candles</button>
+              </div>
+            </div>
+            <div class="chart-container">
+              <svg class="chart-svg" id="priceChartSvg" viewBox="0 0 800 300" preserveAspectRatio="none"></svg>
+              <div class="chart-marker" id="chartMarker">$0.00</div>
+            </div>
+            <div class="flex justify-between mt-2 text-sm" style="color:var(--text-secondary);">
+              <span>Volume: <span id="chartVolume">0</span></span>
+              <span>Change: <span id="chartChange">0%</span></span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">Market Activity</div>
+            <div class="ledger" id="activityFeed"></div>
+          </div>
+        </div>
+
+        <div class="sidebar">
+          <div class="card">
+            <div class="card-header">Trade Ticket</div>
+            <div class="flex justify-between mb-2">
+              <span class="text-sm">Asset: <strong id="tradeAssetName">Nexus Global</strong></span>
+              <span class="text-sm" id="tradeAssetPrice">$0.00</span>
+            </div>
+            <div class="form-row"><input type="number" id="tradeQty" placeholder="Quantity" value="1" min="0.0001" step="any"></div>
+            <div class="form-row">
+              <select id="orderType"><option value="market">Market</option><option value="limit">Limit</option></select>
+              <input type="number" id="limitPrice" placeholder="Limit price" step="any" disabled>
+            </div>
+            <div class="flex gap-2 mt-2">
+              <button class="btn btn-success" style="flex:1;" id="buyBtn">Buy</button>
+              <button class="btn btn-danger" style="flex:1;" id="sellBtn">Sell</button>
+            </div>
+            <div class="text-xs mt-2" style="color:var(--text-secondary);">Cash: <span id="tradeCash">$0</span></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><span>Buy Businesses</span><span id="sidebarBizCount">0 owned</span></div>
+            <div class="flex justify-between text-sm mb-2" style="color:var(--text-secondary);">
+              <span>Income/min: <span id="sidebarIncome" class="text-green">$0</span></span>
+              <span>Valuation: <span id="sidebarValuation">$0</span></span>
+            </div>
+            <div class="buy-business-list" id="businessSidebarList"></div>
+            <button class="btn btn-primary mt-2" style="width:100%;" id="gotoEmpireBtn">View Full Empire</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Markets -->
+    <div class="page" id="page-markets">
+      <div class="card">
+        <div class="card-header">
+          <span>Markets — Fictional Assets</span>
+          <input type="text" id="marketSearch" placeholder="Search name or type..." style="max-width:220px;">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Asset</th><th>Type</th><th>Price</th><th>Change</th><th>Volume</th><th>Action</th></tr></thead>
+            <tbody id="marketsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Portfolio -->
+    <div class="page" id="page-portfolio">
+      <div class="card"><div class="card-header">Holdings</div>
+        <div class="table-wrap"><table><thead><tr><th>Asset</th><th>Quantity</th><th>Avg Price</th><th>Current</th><th>P&L</th></tr></thead><tbody id="holdingsBody"></tbody></table></div>
+      </div>
+      <div class="card"><div class="card-header">Open Orders</div>
+        <div class="table-wrap"><table><thead><tr><th>Asset</th><th>Side</th><th>Qty</th><th>Limit</th><th>Action</th></tr></thead><tbody id="ordersBody"></tbody></table></div>
+      </div>
+      <div class="card"><div class="card-header">Trade History</div>
+        <div class="table-wrap"><table><thead><tr><th>Time</th><th>Asset</th><th>Side</th><th>Qty</th><th>Price</th></tr></thead><tbody id="historyBody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- Launch -->
+    <div class="page" id="page-launch">
+      <div class="card">
+        <div class="card-header">Launch Your Own Asset</div>
+        <div class="form-row"><input type="text" id="customName" placeholder="Asset name"></div>
+        <div class="form-row">
+          <select id="customType"><option value="stock">Stock</option><option value="crypto">Crypto</option><option value="fund">Fund / ETF</option></select>
+          <input type="number" id="customPrice" placeholder="Initial price" value="100" step="any">
+        </div>
+        <button class="btn btn-primary" id="createAssetBtn">Create Asset</button>
+      </div>
+      <div class="card"><div class="card-header">Your Custom Assets</div>
+        <div class="table-wrap"><table><thead><tr><th>Name</th><th>Type</th><th>Price</th><th>Change</th></tr></thead><tbody id="customAssetsBody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- Empire -->
+    <div class="page" id="page-empire">
+      <div class="card">
+        <div class="card-header">Empire Progression</div>
+        <div class="stage-tracker" id="stageTracker"></div>
+        <div class="progress-bar-bg mt-2"><div class="progress-bar-fill" id="stageProgressFill" style="width:0%"></div></div>
+        <div class="flex justify-between text-sm mt-2">
+          <span id="stageObjective">Objective: Acquire your first business</span>
+          <span id="maxStageLabel" class="hidden" style="color:var(--accent-gold); font-weight:700;">MAX STAGE REACHED</span>
+        </div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-item"><div class="stat-label">Total Equity</div><div class="stat-value" id="empireEquity">$0</div></div>
+        <div class="stat-item"><div class="stat-label">Passive Income/min</div><div class="stat-value green" id="empireIncome">$0</div></div>
+        <div class="stat-item"><div class="stat-label">Companies Owned</div><div class="stat-value" id="empireOwned">0</div></div>
+        <div class="stat-item"><div class="stat-label">Total Valuation</div><div class="stat-value" id="empireValuation">$0</div></div>
+      </div>
+
+      <!-- Found your own business -->
+      <div class="card">
+        <div class="card-header">Found Your Own Business</div>
+        <div class="form-row">
+          <input type="text" id="foundName" placeholder="Business name">
+          <input type="text" id="foundSector" placeholder="Sector (e.g. Fintech)">
+        </div>
+        <div class="form-row">
+          <input type="number" id="foundInvestment" placeholder="Investment amount" value="25000" min="1000" step="any">
+        </div>
+        <div class="text-xs mb-2" style="color:var(--text-secondary);">
+          Investment → income. Higher investment = bigger passive income. Income ≈ investment × 0.0005 / min (before upgrades).
+        </div>
+        <button class="btn btn-success" id="foundBusinessBtn">Found Business</button>
+      </div>
+
+      <div class="card"><div class="card-header">Acquisition Marketplace</div>
+        <div class="table-wrap"><table><thead><tr><th>Business</th><th>Sector</th><th>Price</th><th>Income/min</th><th>Status</th><th>Action</th></tr></thead><tbody id="empireMarketBody"></tbody></table></div>
+      </div>
+      <div class="card"><div class="card-header">Owned Companies</div>
+        <div class="table-wrap"><table><thead><tr><th>Business</th><th>Level</th><th>Income/min</th><th>Valuation</th><th>Actions</th></tr></thead><tbody id="ownedBusinessBody"></tbody></table></div>
+      </div>
+      <div class="card"><div class="card-header">Empire Ledger</div><div class="ledger" id="empireLedger"></div></div>
+    </div>
+  </main>
+</div>
+
+<!-- Lo-fi background music -->
+<audio id="bgMusic" loop preload="none"
+       src="https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=lofi-study-112191.mp3"></audio>
+
+<script>
+// ============================================================
+// BUSINESS EMPIRE SIMULATOR — STAGE 5
+// 0.15s ticks, candlesticks, lo-fi music, buy/sell/found businesses
+// ============================================================
+const SAVE_KEY = 'businessEmpireStage5';
+const INITIAL_CASH = 25000;
+const TICK_MS = 150;              // <-- 0.15 seconds
+const CHART_POINTS = 200;         // more history so fast ticks still look readable
+const SAVE_EVERY_MS = 5000;
+const UI_REFRESH_MS = 2000;
+
+const DEFAULT_ASSETS = [
+  // STOCKS
+  { id:'nexus',    name:'Nexus Global',           type:'stock', price:420.50,  history:[], change:0 },
+  { id:'quantum',  name:'Quantum Dynamics',       type:'stock', price:187.30,  history:[], change:0 },
+  { id:'orbital',  name:'Orbital Industries',     type:'stock', price:892.15,  history:[], change:0 },
+  { id:'aero',     name:'AeroLink Group',         type:'stock', price:56.80,   history:[], change:0 },
+  { id:'cloud',    name:'CloudNine Systems',      type:'stock', price:134.20,  history:[], change:0 },
+  { id:'solar',    name:'SunGrid Solar',          type:'stock', price:78.40,   history:[], change:0 },
+  { id:'pixel',    name:'Pixel Studio',           type:'stock', price:23.60,   history:[], change:0 },
+  { id:'swift',    name:'Swift Delivery',         type:'stock', price:12.90,   history:[], change:0 },
+  { id:'harbor',   name:'Harbor Freight Co.',     type:'stock', price:198.40,  history:[], change:0 },
+  { id:'volt',     name:'Volt Motors',            type:'stock', price:342.10,  history:[], change:0 },
+  { id:'medix',    name:'MediX Biotech',          type:'stock', price:67.20,   history:[], change:0 },
+  { id:'finch',    name:'Finch Financial',        type:'stock', price:512.80,  history:[], change:0 },
+  { id:'nordic',   name:'Nordic Steel',           type:'stock', price:44.10,   history:[], change:0 },
+  { id:'appleF',   name:'Appleton Foods',         type:'stock', price:89.90,   history:[], change:0 },
+  { id:'zephyr',   name:'Zephyr Airlines',        type:'stock', price:31.45,   history:[], change:0 },
+  { id:'lumina',   name:'Lumina Entertainment',   type:'stock', price:155.60,  history:[], change:0 },
+  { id:'ironclad', name:'Ironclad Defense',       type:'stock', price:263.15,  history:[], change:0 },
+  { id:'terra',    name:'Terra Mining Corp',      type:'stock', price:18.75,   history:[], change:0 },
+  { id:'cyber',    name:'CyberShield Security',   type:'stock', price:401.90,  history:[], change:0 },
+  { id:'bluewave', name:'BlueWave Telecom',       type:'stock', price:27.30,   history:[], change:0 },
+  { id:'atlas',    name:'Atlas Construction',     type:'stock', price:96.50,   history:[], change:0 },
+  { id:'verdant',  name:'Verdant Agriculture',    type:'stock', price:11.20,   history:[], change:0 },
+  { id:'polaris',  name:'Polaris Shipping',       type:'stock', price:74.85,   history:[], change:0 },
+  { id:'kinetic',  name:'Kinetic Robotics',       type:'stock', price:188.40,  history:[], change:0 },
+  // CRYPTO
+  { id:'btc',  name:'BitCoin Fictitious', type:'crypto', price:64250.00, history:[], change:0 },
+  { id:'eth',  name:'EtherSim',           type:'crypto', price:3410.50,  history:[], change:0 },
+  { id:'sol',  name:'Solana Sim',         type:'crypto', price:146.20,   history:[], change:0 },
+  { id:'ada',  name:'Cardano Fictitious', type:'crypto', price:0.47,     history:[], change:0 },
+  { id:'doge', name:'DogeSim',            type:'crypto', price:0.087,    history:[], change:0 },
+  { id:'xrp',  name:'RippleSim',          type:'crypto', price:0.62,     history:[], change:0 },
+  { id:'dot',  name:'Polkadot Sim',       type:'crypto', price:6.85,     history:[], change:0 },
+  { id:'link', name:'ChainLink Sim',      type:'crypto', price:14.30,    history:[], change:0 },
+  { id:'matic',name:'Polygon Sim',        type:'crypto', price:0.73,     history:[], change:0 },
+  { id:'avax', name:'Avalanche Sim',      type:'crypto', price:34.60,    history:[], change:0 },
+  { id:'atom', name:'Cosmos Sim',         type:'crypto', price:8.90,     history:[], change:0 },
+  { id:'uni',  name:'Uniswap Sim',        type:'crypto', price:9.45,     history:[], change:0 },
+  // FUNDS
+  { id:'fund1', name:'Global Equity ETF',    type:'fund', price:210.50, history:[], change:0 },
+  { id:'fund2', name:'Tech Growth ETF',      type:'fund', price:315.20, history:[], change:0 },
+  { id:'fund3', name:'Green Energy ETF',     type:'fund', price:88.90,  history:[], change:0 },
+  { id:'fund4', name:'Emerging Markets ETF', type:'fund', price:52.30,  history:[], change:0 },
+  { id:'fund5', name:'Crypto Index ETF',     type:'fund', price:145.75, history:[], change:0 },
+  { id:'fund6', name:'Dividend Kings ETF',   type:'fund', price:98.40,  history:[], change:0 },
+  { id:'fund7', name:'Small Cap Value ETF',  type:'fund', price:67.15,  history:[], change:0 },
+  { id:'fund8', name:'Real Estate ETF',      type:'fund', price:124.80, history:[], change:0 },
+  { id:'fund9', name:'Bond Stability ETF',   type:'fund', price:41.20,  history:[], change:0 },
+];
+
+const BUSINESS_DEFS = [
+  { id:'corner', name:'Corner Café',         sector:'Food & Beverage', cost:5000,     baseIncome:2.5,  baseValuation:6000,     unlockStage:1 },
+  { id:'swiftB', name:'Swift Delivery',      sector:'Logistics',       cost:12000,    baseIncome:6,    baseValuation:14000,    unlockStage:1 },
+  { id:'pixelB', name:'Pixel Studio',        sector:'Digital Media',   cost:28000,    baseIncome:14,   baseValuation:32000,    unlockStage:2 },
+  { id:'solarB', name:'SunGrid Solar',       sector:'Clean Energy',    cost:65000,    baseIncome:32,   baseValuation:75000,    unlockStage:2 },
+  { id:'cloudB', name:'CloudNine Systems',   sector:'Technology',      cost:150000,   baseIncome:75,   baseValuation:175000,   unlockStage:3 },
+  { id:'harborB',name:'Harbor Freight Co.',  sector:'Shipping',        cost:350000,   baseIncome:175,  baseValuation:400000,   unlockStage:3 },
+  { id:'aeroB',  name:'AeroLink Group',      sector:'Aerospace',       cost:850000,   baseIncome:425,  baseValuation:980000,   unlockStage:4 },
+  { id:'quantumB',name:'Quantum Dynamics',   sector:'Research',        cost:2000000,  baseIncome:1000, baseValuation:2300000,  unlockStage:4 },
+  { id:'orbitalB',name:'Orbital Industries', sector:'Space Infra',     cost:5000000,  baseIncome:2500, baseValuation:5800000,  unlockStage:5 },
+  { id:'nexusB', name:'Nexus Global Holdings',sector:'Conglomerate',   cost:12000000, baseIncome:6000, baseValuation:14000000, unlockStage:5 },
+];
+
+const STAGES = [
+  { id:1, name:'Startup',             objective:'Acquire your first business', requirement:s=>s.ownedBusinesses.length>=1 },
+  { id:2, name:'Small Business',      objective:'Own 3 businesses',            requirement:s=>s.ownedBusinesses.length>=3 },
+  { id:3, name:'Regional Group',      objective:'Own 5 businesses',            requirement:s=>s.ownedBusinesses.length>=5 },
+  { id:4, name:'National Enterprise', objective:'Own 7 businesses',            requirement:s=>s.ownedBusinesses.length>=7 },
+  { id:5, name:'Global Conglomerate', objective:'Own 10 businesses',           requirement:s=>s.ownedBusinesses.length>=10 },
+];
+
+// Custom-founded businesses live here, keyed by id, so we can look them up
+let customBusinesses = {};   // id -> { name, sector, baseIncome, baseValuation, founded }
+
+let state = {
+  cash: INITIAL_CASH,
+  assets: JSON.parse(JSON.stringify(DEFAULT_ASSETS)),
+  customAssets: [],
+  holdings: {},
+  tradeHistory: [],
+  openOrders: [],
+  ownedBusinesses: [],     // { id, level, isCustom?: true }
+  highestStage: 0,
+  currentStage: 0,
+  lastTick: Date.now(),
+  ledger: [],
+  sessionStartEquity: INITIAL_CASH,
+  chartMode: 'line',
+  activeTradeAsset: 'nexus',
+  customBusinesses: {},
+};
+
+// ---------- helpers ----------
+function fmtMoney(v){ if(v==null||isNaN(v)) return '$0.00'; return '$'+Number(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtNum(v){ if(v==null||isNaN(v)) return '0'; return Number(v).toLocaleString('en-US',{maximumFractionDigits:2}); }
+function esc(t){ if(!t) return ''; return String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function showToast(msg,dur=2500){ const e=document.querySelector('.toast'); if(e)e.remove(); const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),dur); }
+function saveGame(){ try{ state.lastTick=Date.now(); localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }catch(e){ console.warn(e); } }
+
+function loadGame(){
+  try{
+    const raw=localStorage.getItem(SAVE_KEY); if(!raw) return false;
+    const loaded=JSON.parse(raw);
+    state={...state,...loaded};
+    if(!state.assets||!Array.isArray(state.assets)||state.assets.length<5) state.assets=JSON.parse(JSON.stringify(DEFAULT_ASSETS));
+    if(!state.customAssets) state.customAssets=[];
+    if(!state.holdings) state.holdings={};
+    if(!state.tradeHistory) state.tradeHistory=[];
+    if(!state.openOrders) state.openOrders=[];
+    if(!state.ownedBusinesses) state.ownedBusinesses=[];
+    if(!state.ledger) state.ledger=[];
+    if(state.highestStage==null) state.highestStage=0;
+    if(state.currentStage==null) state.currentStage=0;
+    if(!state.chartMode) state.chartMode='line';
+    if(!state.activeTradeAsset) state.activeTradeAsset='nexus';
+    if(!state.customBusinesses) state.customBusinesses={};
+    // seed history
+    const all=[...state.assets,...state.customAssets];
+    for(const a of all){
+      if(!a.history || a.history.length===0){
+        a.history=[];
+        let p=a.price;
+        for(let i=0;i<40;i++){ p*=(1+(Math.random()-0.5)*0.004); a.history.push(p); }
+        a.price=p;
+      }
+    }
+    return true;
+  }catch(e){ console.warn(e); return false; }
+}
+
+// Unified business lookup: built-in + custom
+function getBusinessDef(id){
+  const built = BUSINESS_DEFS.find(b=>b.id===id);
+  if(built) return built;
+  const cb = state.customBusinesses[id];
+  if(cb) return cb;
+  return null;
+}
+
+function getAssetById(id){ return state.assets.find(a=>a.id===id)||state.customAssets.find(a=>a.id===id); }
+function getPortfolioValue(){ let t=0; for(const [id,h] of Object.entries(state.holdings)){ const a=getAssetById(id); if(a&&h.qty>0) t+=h.qty*a.price; } return t; }
+function getTotalEquity(){ return state.cash+getPortfolioValue(); }
+
+function getBusinessIncomePerMin(id,lvl){
+  const d=getBusinessDef(id); if(!d) return 0;
+  return d.baseIncome*Math.pow(1.25,lvl);
+}
+function getBusinessValuation(id,lvl){
+  const d=getBusinessDef(id); if(!d) return 0;
+  return d.baseValuation*Math.pow(1.3,lvl);
+}
+function getTotalPassiveIncome(){ let t=0; for(const o of state.ownedBusinesses) t+=getBusinessIncomePerMin(o.id,o.level); return t; }
+function getTotalBusinessValuation(){ let t=0; for(const o of state.ownedBusinesses) t+=getBusinessValuation(o.id,o.level); return t; }
+function getUpgradeCost(id,lvl){
+  const d=getBusinessDef(id); if(!d) return Infinity;
+  return (d.cost||d.baseValuation*0.8)*Math.pow(1.8,lvl);
+}
+
+function checkStageProgression(){
+  let newHigh=state.highestStage;
+  for(const s of STAGES){
+    if(s.id>state.highestStage && s.requirement(state)) newHigh=s.id;
+  }
+  if(newHigh>state.highestStage){
+    for(let i=state.highestStage+1;i<=newHigh;i++){
+      const sd=STAGES.find(x=>x.id===i);
+      if(sd){ addLedgerEntry(`🏆 Stage ${i} unlocked: ${sd.name}`); showToast(`Stage ${i}: ${sd.name} unlocked!`,3500); }
+    }
+    state.highestStage=newHigh;
+  }
+  state.currentStage=state.highestStage;
+}
+
+function addLedgerEntry(text){ const ts=new Date().toLocaleTimeString(); state.ledger.unshift(`[${ts}] ${text}`); if(state.ledger.length>60) state.ledger.pop(); }
+function addActivity(text){ const f=document.getElementById('activityFeed'); if(!f) return; const d=document.createElement('div'); d.className='ledger-entry'; d.textContent=`[${new Date().toLocaleTimeString()}] ${text}`; f.prepend(d); while(f.children.length>25) f.lastChild.remove(); }
+
+// ---------- simulation ----------
+function simulatePrices(){
+  const all=[...state.assets,...state.customAssets];
+  for(const a of all){
+    // per-tick volatility tuned for 0.15s ticks (much smaller than before)
+    const vol = a.type==='crypto'?0.0022 : a.type==='stock'?0.0009 : 0.0006;
+    const drift = 0.00002;
+    const change = (Math.random()-0.5)*2*vol + drift;
+    const prevPrice = a.price;
+    a.price = Math.max(0.0001, a.price*(1+change));
+    a.change = ((a.price - prevPrice)/prevPrice)*100;
+    if(!a.history) a.history=[];
+    a.history.push(a.price);
+    if(a.history.length>CHART_POINTS) a.history.shift();
+  }
+}
+
+function processPassiveIncome(){
+  const now=Date.now(); if(!state.lastTick) state.lastTick=now;
+  const elapsedMin=Math.min((now-state.lastTick)/60000,10);
+  state.lastTick=now;
+  if(elapsedMin>0.00001){
+    const inc=getTotalPassiveIncome();
+    if(inc>0) state.cash+=inc*elapsedMin;
+  }
+}
+
+// ---------- trading ----------
+function executeTrade(id,side,qty,price){
+  const a=getAssetById(id); if(!a) return false;
+  if(!(qty>0)||!isFinite(qty)) return false;
+  const cost=qty*price;
+  if(side==='buy'){
+    if(state.cash<cost){ showToast('Insufficient cash'); return false; }
+    state.cash-=cost;
+    const h=state.holdings[id]||{qty:0,avgPrice:0};
+    const nq=h.qty+qty;
+    state.holdings[id]={qty:nq,avgPrice:((h.qty*h.avgPrice)+cost)/nq};
+  } else if(side==='sell'){
+    const h=state.holdings[id];
+    if(!h||h.qty<qty){ showToast('Insufficient holdings'); return false; }
+    state.cash+=cost;
+    h.qty-=qty;
+    if(h.qty<=0.00001) delete state.holdings[id];
+  } else return false;
+  state.tradeHistory.unshift({time:new Date().toLocaleTimeString(),assetId:id,side,qty,price});
+  if(state.tradeHistory.length>200) state.tradeHistory.pop();
+  addActivity(`${side.toUpperCase()} ${qty} ${a.name} @ ${fmtMoney(price)}`);
+  return true;
+}
+
+function processLimitOrders(){
+  const all=[...state.assets,...state.customAssets];
+  const still=[];
+  for(const o of state.openOrders){
+    const a=all.find(x=>x.id===o.assetId); if(!a) continue;
+    let done=false;
+    if(o.side==='buy' && a.price<=o.limitPrice){
+      const cost=o.qty*o.limitPrice;
+      if(state.cash>=cost){
+        state.cash-=cost;
+        const h=state.holdings[o.assetId]||{qty:0,avgPrice:0};
+        const nq=h.qty+o.qty;
+        state.holdings[o.assetId]={qty:nq,avgPrice:((h.qty*h.avgPrice)+cost)/nq};
+        state.tradeHistory.unshift({time:new Date().toLocaleTimeString(),assetId:o.assetId,side:'buy',qty:o.qty,price:o.limitPrice});
+        addActivity(`Limit BUY ${o.qty} ${a.name} @ ${fmtMoney(o.limitPrice)}`);
+        done=true;
+      }
+    } else if(o.side==='sell' && a.price>=o.limitPrice){
+      const h=state.holdings[o.assetId];
+      if(h&&h.qty>=o.qty){
+        h.qty-=o.qty; state.cash+=o.qty*o.limitPrice;
+        if(h.qty<=0.00001) delete state.holdings[o.assetId];
+        state.tradeHistory.unshift({time:new Date().toLocaleTimeString(),assetId:o.assetId,side:'sell',qty:o.qty,price:o.limitPrice});
+        addActivity(`Limit SELL ${o.qty} ${a.name} @ ${fmtMoney(o.limitPrice)}`);
+        done=true;
+      }
+    }
+    if(!done) still.push(o);
+  }
+  state.openOrders=still;
+}
+
+// ---------- chart ----------
+function drawChart(asset){
+  const svg=document.getElementById('priceChartSvg'); if(!svg) return;
+  svg.innerHTML='';
+  // For 0.15s ticks we have tons of points — downsample for line, group for candles
+  const raw=(asset.history||[]);
+  if(raw.length<3){
+    svg.innerHTML='<text x="400" y="150" text-anchor="middle" fill="#8e9db0" font-size="14">Collecting data…</text>';
+    return;
+  }
+
+  const W=800, H=300;
+  const padL=10, padR=70, padT=10, padB=20;
+  const chartW=W-padL-padR, chartH=H-padT-padB;
+
+  // Decide how many candles we want to show (max ~60)
+  const candleTarget = 60;
+  const groupSize = Math.max(1, Math.floor(raw.length / candleTarget));
+
+  // Build candle series for both display modes (line uses close of each group)
+  const candles=[];
+  for(let i=0;i<raw.length;i+=groupSize){
+    const slice=raw.slice(i,i+groupSize);
+    if(slice.length===0) continue;
+    const open=slice[0];
+    const close=slice[slice.length-1];
+    const high=Math.max(...slice);
+    const low=Math.min(...slice);
+    candles.push({open,close,high,low});
+  }
+  // make sure we have at least a handful
+  if(candles.length<2) return;
+
+  const closes = candles.map(c=>c.close);
+  const min=Math.min(...candles.map(c=>c.low));
+  const max=Math.max(...candles.map(c=>c.high));
+  const range=(max-min)||1;
+  const yScale = p => padT + chartH - ((p-min)/range)*chartH;
+
+  // grid + price axis
+  const gridLines=5;
+  for(let i=0;i<=gridLines;i++){
+    const y = padT + (chartH*i/gridLines);
+    const price = max - (range*i/gridLines);
+    svg.innerHTML += `<line x1="${padL}" y1="${y}" x2="${padL+chartW}" y2="${y}" stroke="#1a2330" stroke-width="1"/>`;
+    svg.innerHTML += `<text x="${padL+chartW+6}" y="${y+4}" fill="#8e9db0" font-size="11" font-family="monospace">$${price.toFixed(2)}</text>`;
+  }
+
+  const up = closes[closes.length-1] >= closes[0];
+  const mainColor = up ? '#26a69a' : '#ef5350';
+
+  if(state.chartMode==='line'){
+    const n=candles.length;
+    const pts=candles.map((c,i)=>{
+      const x=padL+(i/(n-1))*chartW;
+      const y=yScale(c.close);
+      return [x,y];
+    });
+    const areaPts=[[pts[0][0],padT+chartH],...pts,[pts[pts.length-1][0],padT+chartH]].map(p=>p.join(',')).join(' ');
+    svg.innerHTML += `<polygon points="${areaPts}" fill="${mainColor}" opacity="0.10"/>`;
+    svg.innerHTML += `<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${mainColor}" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+    const last=pts[pts.length-1];
+    svg.innerHTML += `<circle cx="${last[0]}" cy="${last[1]}" r="3.5" fill="${mainColor}"/>`;
+  } else {
+    const n=candles.length;
+    const slot=chartW/n;
+    const bodyW=Math.max(1.5, Math.min(slot*0.7, 14));
+    for(let i=0;i<n;i++){
+      const c=candles[i];
+      const upC=c.close>=c.open;
+      const color=upC?'#26a69a':'#ef5350';
+      const cx=padL+slot*i+slot/2;
+      const yHigh=yScale(c.high);
+      const yLow=yScale(c.low);
+      svg.innerHTML += `<line x1="${cx}" y1="${yHigh}" x2="${cx}" y2="${yLow}" stroke="${color}" stroke-width="1"/>`;
+      const yOpen=yScale(c.open);
+      const yClose=yScale(c.close);
+      const bodyTop=Math.min(yOpen,yClose);
+      const bodyH=Math.max(1, Math.abs(yClose-yOpen));
+      svg.innerHTML += `<rect x="${cx-bodyW/2}" y="${bodyTop}" width="${bodyW}" height="${bodyH}" fill="${color}" stroke="${color}"><title>O:${fmtMoney(c.open)} H:${fmtMoney(c.high)} L:${fmtMoney(c.low)} C:${fmtMoney(c.close)}</title></rect>`;
+    }
+    svg.innerHTML += `<line x1="${padL}" y1="${padT+chartH}" x2="${padL+chartW}" y2="${padT+chartH}" stroke="#2a3442" stroke-width="1"/>`;
+  }
+}
+
+// ---------- renders ----------
+function renderTopBar(){ document.getElementById('navEquity').textContent=fmtMoney(getTotalEquity()); }
+
+function renderDashboard(){
+  const eq=getTotalEquity(), pv=getPortfolioValue();
+  const pnl=eq-(state.sessionStartEquity||eq);
+  document.getElementById('totalEquity').textContent=fmtMoney(eq);
+  document.getElementById('cashDisplay').textContent=fmtMoney(state.cash);
+  document.getElementById('portfolioValue').textContent=fmtMoney(pv);
+  const pe=document.getElementById('sessionPnl');
+  pe.textContent=fmtMoney(pnl);
+  pe.className='stat-value '+(pnl>=0?'green':'red');
+
+  const a=getAssetById(state.activeTradeAsset)||state.assets[0];
+  if(a){
+    document.getElementById('chartAssetName').textContent=a.name;
+    document.getElementById('chartMarker').textContent=fmtMoney(a.price);
+    const chEl=document.getElementById('chartChange');
+    chEl.textContent=(a.change||0).toFixed(2)+'%';
+    chEl.className=(a.change>=0)?'text-green':'text-red';
+    document.getElementById('chartVolume').textContent=fmtNum(Math.random()*2e6+2e5);
+    drawChart(a);
+    document.getElementById('tradeAssetName').textContent=a.name;
+    document.getElementById('tradeAssetPrice').textContent=fmtMoney(a.price);
+  }
+  document.getElementById('tradeCash').textContent=fmtMoney(state.cash);
+}
+
+function renderMarkets(filter){
+  const tbody=document.getElementById('marketsBody'); if(!tbody) return;
+  const all=[...state.assets,...state.customAssets];
+  const q=(filter||'').trim().toLowerCase();
+  const list=q? all.filter(a=>a.name.toLowerCase().includes(q)||a.type.toLowerCase().includes(q)) : all;
+  tbody.innerHTML=list.map(a=>{
+    const tag = a.type==='stock'?'tag-stock':a.type==='crypto'?'tag-crypto':'tag-fund';
+    return `<tr>
+      <td><strong>${esc(a.name)}</strong></td>
+      <td class="${tag}">${a.type}</td>
+      <td>${fmtMoney(a.price)}</td>
+      <td class="${a.change>=0?'text-green':'text-red'}">${(a.change||0).toFixed(2)}%</td>
+      <td>${fmtNum(Math.random()*5e5+1e5)}</td>
+      <td><button class="btn btn-sm btn-primary" onclick="window.selectTradeAsset('${a.id}')">Trade</button></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" style="color:var(--text-secondary);">No matches</td></tr>';
+}
+
+function renderPortfolio(){
+  const hb=document.getElementById('holdingsBody');
+  const ob=document.getElementById('ordersBody');
+  const tb=document.getElementById('historyBody');
+  if(!hb) return;
+  const entries=Object.entries(state.holdings);
+  hb.innerHTML=entries.length===0?'<tr><td colspan="5" style="color:var(--text-secondary);">No holdings</td></tr>':
+    entries.map(([id,h])=>{
+      const a=getAssetById(id); if(!a) return '';
+      const pnl=(a.price-h.avgPrice)*h.qty;
+      return `<tr>
+        <td>${esc(a.name)}</td>
+        <td>${h.qty.toFixed(4)}</td>
+        <td>${fmtMoney(h.avgPrice)}</td>
+        <td>${fmtMoney(a.price)}</td>
+        <td class="${pnl>=0?'text-green':'text-red'}">${fmtMoney(pnl)}</td>
+      </tr>`;
+    }).join('');
+
+  ob.innerHTML=state.openOrders.length===0?'<tr><td colspan="5" style="color:var(--text-secondary);">No open orders</td></tr>':
+    state.openOrders.map((o,i)=>{
+      const a=getAssetById(o.assetId);
+      return `<tr>
+        <td>${a?esc(a.name):o.assetId}</td>
+        <td class="${o.side==='buy'?'text-green':'text-red'}">${o.side}</td>
+        <td>${o.qty}</td>
+        <td>${fmtMoney(o.limitPrice)}</td>
+        <td><button class="btn btn-sm btn-danger" onclick="window.cancelOrder(${i})">Cancel</button></td>
+      </tr>`;
+    }).join('');
+
+  tb.innerHTML=state.tradeHistory.slice(0,30).map(t=>{
+    const a=getAssetById(t.assetId);
+    return `<tr>
+      <td>${t.time}</td>
+      <td>${a?esc(a.name):t.assetId}</td>
+      <td class="${t.side==='buy'?'text-green':'text-red'}">${t.side}</td>
+      <td>${t.qty}</td>
+      <td>${fmtMoney(t.price)}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="5" style="color:var(--text-secondary);">No trades yet</td></tr>';
+}
+
+function renderCustomAssets(){
+  const tb=document.getElementById('customAssetsBody'); if(!tb) return;
+  tb.innerHTML=state.customAssets.length===0?'<tr><td colspan="4" style="color:var(--text-secondary);">No custom assets</td></tr>':
+    state.customAssets.map(a=>`<tr>
+      <td>${esc(a.name)}</td>
+      <td>${a.type}</td>
+      <td>${fmtMoney(a.price)}</td>
+      <td class="${a.change>=0?'text-green':'text-red'}">${(a.change||0).toFixed(2)}%</td>
+    </tr>`).join('');
+}
+
+function renderSidebarBusinesses(){
+  const list=document.getElementById('businessSidebarList'); if(!list) return;
+  document.getElementById('sidebarBizCount').textContent=state.ownedBusinesses.length+' owned';
+  document.getElementById('sidebarIncome').textContent=fmtMoney(getTotalPassiveIncome());
+  document.getElementById('sidebarValuation').textContent=fmtMoney(getTotalBusinessValuation());
+
+  // Show only built-in defs in the sidebar (custom ones live on the Empire page)
+  list.innerHTML=BUSINESS_DEFS.map(b=>{
+    const owned=state.ownedBusinesses.find(o=>o.id===b.id);
+    const isOwned=!!owned;
+    const isLocked=state.highestStage<b.unlockStage-1 && b.unlockStage>1;
+    const canAfford=state.cash>=b.cost;
+    const lvl=owned?owned.level:0;
+    const inc=getBusinessIncomePerMin(b.id,lvl);
+
+    let actions='';
+    if(isOwned){
+      const uc=getUpgradeCost(b.id,lvl);
+      actions = `<button class="btn btn-sm btn-primary" onclick="window.upgradeBusiness('${b.id}')" ${state.cash<uc?'disabled':''}>Upgrade (${fmtMoney(uc)})</button>
+                 <button class="btn btn-sm btn-danger" onclick="window.sellBusiness('${b.id}')">Sell</button>`;
+    } else if(isLocked){
+      actions = `<button class="btn btn-sm" disabled>Locked — Stage ${b.unlockStage}</button>`;
+    } else {
+      actions = `<button class="btn btn-sm btn-success" onclick="window.acquireBusiness('${b.id}')" ${!canAfford?'disabled':''}>Acquire</button>`;
+    }
+
+    return `<div class="business-item ${isOwned?'owned':''} ${isLocked?'locked':''}">
+      <div class="business-name"><span>${esc(b.name)}</span>
+        <span class="text-xs" style="color:var(--text-secondary);">${isOwned?'Lv.'+lvl:(isLocked?'Locked':fmtMoney(b.cost))}</span>
+      </div>
+      <div class="business-sector">${b.sector}</div>
+      <div class="business-stats text-xs">
+        <span>Income/min: <span class="text-green">${fmtMoney(inc)}</span></span>
+        <span>Val: ${fmtMoney(getBusinessValuation(b.id,lvl))}</span>
+      </div>
+      <div class="business-actions">${actions}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderStageTracker(){
+  const tr=document.getElementById('stageTracker'); if(!tr) return;
+  const fill=document.getElementById('stageProgressFill');
+  const obj=document.getElementById('stageObjective');
+  const mx=document.getElementById('maxStageLabel');
+
+  tr.innerHTML=STAGES.map(s=>{
+    let cls='stage-pill';
+    if(state.highestStage>=s.id) cls+=' completed';
+    if(state.currentStage===s.id && state.highestStage<s.id) cls+=' active';
+    return `<span class="${cls}">Stage ${s.id}: ${s.name}</span>`;
+  }).join('');
+
+  let prog=0;
+  if(state.highestStage>=5) prog=100;
+  else{
+    const next=STAGES.find(s=>s.id===state.highestStage+1);
+    if(next){
+      const m=next.requirement.toString().match(/>= (\d+)/);
+      if(m){ const target=parseInt(m[1]); prog=Math.min(100,(state.ownedBusinesses.length/target)*100); }
+    }
+  }
+  if(fill) fill.style.width=prog+'%';
+
+  if(state.highestStage>=5){
+    if(mx) mx.classList.remove('hidden');
+    if(obj) obj.textContent='Objective: MAX STAGE REACHED — keep expanding!';
+  } else {
+    if(mx) mx.classList.add('hidden');
+    const next=STAGES.find(s=>s.id===state.highestStage+1);
+    if(next && obj) obj.textContent='Objective: '+next.objective;
+  }
+}
+
+function renderEmpire(){
+  document.getElementById('empireEquity').textContent=fmtMoney(getTotalEquity());
+  document.getElementById('empireIncome').textContent=fmtMoney(getTotalPassiveIncome());
+  document.getElementById('empireOwned').textContent=state.ownedBusinesses.length;
+  document.getElementById('empireValuation').textContent=fmtMoney(getTotalBusinessValuation());
+
+  // Marketplace = built-in only (custom businesses are yours already)
+  const mb=document.getElementById('empireMarketBody');
+  if(mb){
+    mb.innerHTML=BUSINESS_DEFS.map(b=>{
+      const owned=state.ownedBusinesses.find(o=>o.id===b.id);
+      const isOwned=!!owned;
+      const isLocked=state.highestStage<b.unlockStage-1 && b.unlockStage>1;
+      const canAfford=state.cash>=b.cost;
+      return `<tr>
+        <td>${esc(b.name)}</td>
+        <td>${b.sector}</td>
+        <td>${fmtMoney(b.cost)}</td>
+        <td>${fmtMoney(b.baseIncome)}</td>
+        <td>${isOwned?'✅ Owned':(isLocked?'🔒 Stage '+b.unlockStage:'🔓 Available')}</td>
+        <td>${isOwned?'<span class="text-green">Owned</span>':(isLocked?'<span class="text-secondary">Locked</span>':`<button class="btn btn-sm btn-success" onclick="window.acquireBusiness('${b.id}')" ${!canAfford?'disabled':''}>Acquire</button>`)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  const ob=document.getElementById('ownedBusinessBody');
+  if(ob){
+    ob.innerHTML=state.ownedBusinesses.length===0?'<tr><td colspan="5" style="color:var(--text-secondary);">No businesses owned</td></tr>':
+      state.ownedBusinesses.map(o=>{
+        const d=getBusinessDef(o.id); if(!d) return '';
+        const inc=getBusinessIncomePerMin(o.id,o.level);
+        const val=getBusinessValuation(o.id,o.level);
+        const uc=getUpgradeCost(o.id,o.level);
+        return `<tr>
+          <td>${esc(d.name)}${d.isCustom?' <span class="text-xs" style="color:var(--accent-gold);">(yours)</span>':''}</td>
+          <td>Lv. ${o.level}</td>
+          <td class="text-green">${fmtMoney(inc)}</td>
+          <td>${fmtMoney(val)}</td>
+          <td>
+            <button class="btn btn-sm btn-primary" onclick="window.upgradeBusiness('${o.id}')" ${state.cash<uc?'disabled':''}>Upgrade (${fmtMoney(uc)})</button>
+            <button class="btn btn-sm btn-danger" onclick="window.sellBusiness('${o.id}')">Sell</button>
+          </td>
+        </tr>`;
+      }).join('');
+  }
+
+  const led=document.getElementById('empireLedger');
+  if(led){
+    led.innerHTML=state.ledger.slice(0,40).map(e=>`<div class="ledger-entry">${esc(e)}</div>`).join('')||'<div style="color:var(--text-secondary);">No events yet</div>';
+  }
+}
+
+function renderAll(){
+  renderTopBar();
+  renderDashboard();
+  renderMarkets(document.getElementById('marketSearch')?.value);
+  renderPortfolio();
+  renderCustomAssets();
+  renderSidebarBusinesses();
+  renderStageTracker();
+  renderEmpire();
+}
+
+function renderFast(){
+  renderTopBar();
+  const eq=getTotalEquity(), pv=getPortfolioValue();
+  const pnl=eq-(state.sessionStartEquity||eq);
+  document.getElementById('totalEquity').textContent=fmtMoney(eq);
+  document.getElementById('cashDisplay').textContent=fmtMoney(state.cash);
+  document.getElementById('portfolioValue').textContent=fmtMoney(pv);
+  const pe=document.getElementById('sessionPnl');
+  pe.textContent=fmtMoney(pnl);
+  pe.className='stat-value '+(pnl>=0?'green':'red');
+
+  const a=getAssetById(state.activeTradeAsset)||state.assets[0];
+  if(a){
+    document.getElementById('chartAssetName').textContent=a.name;
+    document.getElementById('chartMarker').textContent=fmtMoney(a.price);
+    const chEl=document.getElementById('chartChange');
+    chEl.textContent=(a.change||0).toFixed(2)+'%';
+    chEl.className=(a.change>=0)?'text-green':'text-red';
+    document.getElementById('chartVolume').textContent=fmtNum(Math.random()*2e6+2e5);
+    drawChart(a);
+    document.getElementById('tradeAssetName').textContent=a.name;
+    document.getElementById('tradeAssetPrice').textContent=fmtMoney(a.price);
+  }
+  document.getElementById('tradeCash').textContent=fmtMoney(state.cash);
+}
+
+// ---------- actions ----------
+window.acquireBusiness=function(id){
+  const d=BUSINESS_DEFS.find(b=>b.id===id); if(!d) return;
+  if(state.ownedBusinesses.find(o=>o.id===id)){ showToast('Already owned'); return; }
+  if(state.highestStage<d.unlockStage-1 && d.unlockStage>1){ showToast('Locked — reach Stage '+d.unlockStage); return; }
+  if(state.cash<d.cost){ showToast('Insufficient cash'); return; }
+  state.cash-=d.cost;
+  state.ownedBusinesses.push({id,level:0});
+  addLedgerEntry(`Acquired ${d.name} for ${fmtMoney(d.cost)}`);
+  showToast(`Acquired ${d.name}!`);
+  checkStageProgression(); saveGame(); renderAll();
+};
+
+window.upgradeBusiness=function(id){
+  const o=state.ownedBusinesses.find(x=>x.id===id); if(!o) return;
+  const d=getBusinessDef(id); if(!d) return;
+  const cost=getUpgradeCost(id,o.level);
+  if(state.cash<cost){ showToast('Insufficient cash'); return; }
+  state.cash-=cost; o.level+=1;
+  addLedgerEntry(`Upgraded ${d.name} to level ${o.level}`);
+  showToast(`${d.name} → Lv.${o.level}`);
+  checkStageProgression(); saveGame(); renderAll();
+};
+
+// Sell a business — you get current valuation minus 15% broker fee
+window.sellBusiness=function(id){
+  const idx=state.ownedBusinesses.findIndex(o=>o.id===id);
+  if(idx<0) return;
+  const o=state.ownedBusinesses[idx];
+  const d=getBusinessDef(id); if(!d) return;
+  const val=getBusinessValuation(id,o.level);
+  const fee=val*0.15;
+  const proceeds=val-fee;
+  if(!confirm(`Sell ${d.name} (Lv.${o.level})?\n\nValuation: ${fmtMoney(val)}\nBroker fee (15%): ${fmtMoney(fee)}\nYou receive: ${fmtMoney(proceeds)}`)) return;
+  state.cash+=proceeds;
+  state.ownedBusinesses.splice(idx,1);
+  addLedgerEntry(`Sold ${d.name} for ${fmtMoney(proceeds)} (net of ${fmtMoney(fee)} fee)`);
+  showToast(`Sold ${d.name} for ${fmtMoney(proceeds)}`);
+  saveGame(); renderAll();
+};
+
+window.cancelOrder=function(i){
+  if(!state.openOrders[i]) return;
+  state.openOrders.splice(i,1);
+  showToast('Order cancelled'); saveGame(); renderAll();
+};
+
+window.selectTradeAsset=function(id){
+  const a=getAssetById(id); if(!a) return;
+  state.activeTradeAsset=id;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-dashboard').classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.nav-btn[data-page="dashboard"]').classList.add('active');
+  saveGame(); renderAll();
+};
+
+// ---------- events ----------
+function setupEventListeners(){
+  document.querySelectorAll('.nav-btn[data-page]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const p=btn.dataset.page;
+      document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+      document.getElementById('page-'+p).classList.add('active');
+      document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      renderAll();
+    });
+  });
+
+  document.getElementById('resetBtn').addEventListener('click',()=>{
+    if(!confirm('Reset game? All progress lost.')) return;
+    localStorage.removeItem(SAVE_KEY);
+    state={
+      cash:INITIAL_CASH,
+      assets:JSON.parse(JSON.stringify(DEFAULT_ASSETS)),
+      customAssets:[],
+      holdings:{}, tradeHistory:[], openOrders:[], ownedBusinesses:[],
+      highestStage:0, currentStage:0, lastTick:Date.now(),
+      ledger:[], sessionStartEquity:INITIAL_CASH,
+      chartMode:'line', activeTradeAsset:'nexus',
+      customBusinesses:{},
+    };
+    const all=[...state.assets,...state.customAssets];
+    for(const a of all){
+      a.history=[];
+      let p=a.price;
+      for(let i=0;i<40;i++){ p*=(1+(Math.random()-0.5)*0.004); a.history.push(p); }
+      a.price=p;
+    }
+    addLedgerEntry('Game reset');
+    saveGame(); renderAll(); showToast('Game reset');
+  });
+
+  document.getElementById('chartToggle').addEventListener('click',(e)=>{
+    const btn=e.target.closest('button[data-mode]'); if(!btn) return;
+    state.chartMode=btn.dataset.mode;
+    document.querySelectorAll('#chartToggle button').forEach(b=>b.classList.toggle('active',b===btn));
+    saveGame();
+    const a=getAssetById(state.activeTradeAsset)||state.assets[0];
+    if(a) drawChart(a);
+  });
+
+  document.getElementById('orderType').addEventListener('change',(e)=>{
+    document.getElementById('limitPrice').disabled=e.target.value!=='limit';
+  });
+
+  document.getElementById('buyBtn').addEventListener('click',()=>{
+    const id=state.activeTradeAsset; const a=getAssetById(id); if(!a) return;
+    const qty=parseFloat(document.getElementById('tradeQty').value)||0;
+    if(!(qty>0)){ showToast('Enter a valid quantity'); return; }
+    if(document.getElementById('orderType').value==='limit'){
+      const lp=parseFloat(document.getElementById('limitPrice').value);
+      if(!(lp>0)){ showToast('Enter a valid limit price'); return; }
+      if(state.cash<qty*lp){ showToast('Insufficient cash for limit buy'); return; }
+      state.openOrders.push({assetId:id,side:'buy',qty,limitPrice:lp,time:Date.now()});
+      showToast('Limit buy placed');
+    } else {
+      if(executeTrade(id,'buy',qty,a.price)) showToast(`Bought ${qty} ${a.name}`);
+    }
+    saveGame(); renderAll();
+  });
+
+  document.getElementById('sellBtn').addEventListener('click',()=>{
+    const id=state.activeTradeAsset; const a=getAssetById(id); if(!a) return;
+    const qty=parseFloat(document.getElementById('tradeQty').value)||0;
+    if(!(qty>0)){ showToast('Enter a valid quantity'); return; }
+    if(document.getElementById('orderType').value==='limit'){
+      const lp=parseFloat(document.getElementById('limitPrice').value);
+      if(!(lp>0)){ showToast('Enter a valid limit price'); return; }
+      const h=state.holdings[id];
+      if(!h||h.qty<qty){ showToast('Insufficient holdings for limit sell'); return; }
+      state.openOrders.push({assetId:id,side:'sell',qty,limitPrice:lp,time:Date.now()});
+      showToast('Limit sell placed');
+    } else {
+      if(executeTrade(id,'sell',qty,a.price)) showToast(`Sold ${qty} ${a.name}`);
+    }
+    saveGame(); renderAll();
+  });
+
+  document.getElementById('createAssetBtn').addEventListener('click',()=>{
+    const name=document.getElementById('customName').value.trim();
+    const type=document.getElementById('customType').value;
+    const price=parseFloat(document.getElementById('customPrice').value);
+    if(!name||!(price>0)){ showToast('Enter valid name & price'); return; }
+    const id='custom_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+    const hist=[]; let p=price;
+    for(let i=0;i<40;i++){ p*=(1+(Math.random()-0.5)*0.004); hist.push(p); }
+    state.customAssets.push({id,name,type,price:p,history:hist,change:0});
+    addLedgerEntry(`Created custom asset: ${name}`);
+    showToast('Created: '+name);
+    saveGame(); renderAll();
+  });
+
+  // Found your own business
+  document.getElementById('foundBusinessBtn').addEventListener('click',()=>{
+    const name=document.getElementById('foundName').value.trim();
+    const sector=document.getElementById('foundSector').value.trim() || 'Private';
+    const inv=parseFloat(document.getElementById('foundInvestment').value);
+    if(!name){ showToast('Enter a business name'); return; }
+    if(!(inv>=1000)){ showToast('Minimum investment is $1,000'); return; }
+    if(state.cash<inv){ showToast('Insufficient cash'); return; }
+
+    // Income model: 0.05% of investment per minute at Lv.0
+    // Valuation starts at investment (you just spent that much), grows with level.
+    const baseIncome = inv * 0.0005;
+    const baseValuation = inv;
+    const id = 'found_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+
+    state.customBusinesses[id] = {
+      id, name, sector,
+      cost: inv,              // used for upgrade math
+      baseIncome, baseValuation,
+      unlockStage: 1,
+      isCustom: true,
+    };
+    state.cash -= inv;
+    state.ownedBusinesses.push({ id, level: 0, isCustom: true });
+    addLedgerEntry(`Founded ${name} in ${sector} with ${fmtMoney(inv)}`);
+    showToast(`Founded ${name}!`);
+    // clear form
+    document.getElementById('foundName').value='';
+    document.getElementById('foundSector').value='';
+    checkStageProgression(); saveGame(); renderAll();
+  });
+
+  const search=document.getElementById('marketSearch');
+  if(search) search.addEventListener('input',()=>renderMarkets(search.value));
+
+  document.getElementById('gotoEmpireBtn').addEventListener('click',()=>{
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.getElementById('page-empire').classList.add('active');
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelector('.nav-btn[data-page="empire"]').classList.add('active');
+    renderAll();
+  });
+}
+
+// ---------- music ----------
+function setupMusic(){
+  const musicBtn=document.getElementById('musicBtn');
+  const bgMusic=document.getElementById('bgMusic');
+  if(!musicBtn||!bgMusic) return;
+  bgMusic.volume=0.28;   // gentle background level
+
+  const wantOn=localStorage.getItem('businessEmpire_music')==='on';
+  if(wantOn){
+    musicBtn.textContent='🔊 Lo-fi';
+  }
+
+  musicBtn.addEventListener('click',()=>{
+    if(bgMusic.paused){
+      bgMusic.play().then(()=>{
+        musicBtn.textContent='🔊 Lo-fi';
+        localStorage.setItem('businessEmpire_music','on');
+        showToast('Lo-fi music on');
+      }).catch(()=>{
+        showToast('Music blocked — click again');
+      });
+    } else {
+      bgMusic.pause();
+      musicBtn.textContent='🔇 Lo-fi';
+      localStorage.setItem('businessEmpire_music','off');
+      showToast('Music off');
+    }
+  });
+
+  // If the user prefers music on, try to resume on their first gesture
+  if(wantOn){
+    const kick=()=>{
+      bgMusic.play().then(()=>{
+        musicBtn.textContent='🔊 Lo-fi';
+      }).catch(()=>{});
+      document.removeEventListener('click',kick);
+      document.removeEventListener('touchstart',kick);
+    };
+    document.addEventListener('click',kick,{once:true});
+    document.addEventListener('touchstart',kick,{once:true});
+  }
+}
+
+// ---------- loops ----------
+let _lastSave=0;
+let _lastFullRender=0;
+
+function fastTick(){
+  simulatePrices();
+  processLimitOrders();
+  processPassiveIncome();
+  checkStageProgression();
+  renderFast();
+
+  const now=Date.now();
+  if(now-_lastFullRender>UI_REFRESH_MS){
+    const activePage=document.querySelector('.page.active')?.id;
+    if(activePage==='page-markets') renderMarkets(document.getElementById('marketSearch')?.value);
+    if(activePage==='page-portfolio') renderPortfolio();
+    if(activePage==='page-dashboard') renderSidebarBusinesses();
+    if(activePage==='page-empire') renderEmpire();
+    _lastFullRender=now;
+  }
+  if(now-_lastSave>SAVE_EVERY_MS){ saveGame(); _lastSave=now; }
+}
+
+// ---------- init ----------
+function init(){
+  loadGame();
+  if(!state.lastTick) state.lastTick=Date.now();
+  if(!state.sessionStartEquity) state.sessionStartEquity=getTotalEquity();
+
+  document.querySelectorAll('#chartToggle button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.mode===state.chartMode);
+  });
+
+  setupEventListeners();
+  setupMusic();
+  renderAll();
+  addLedgerEntry('Game started');
+  setInterval(fastTick, TICK_MS);
+  window.addEventListener('beforeunload',saveGame);
+  showToast('Business Empire Simulator — 0.15s live ticks');
+}
+
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init);
+else init();
+</script>
+</body>
+</html>
